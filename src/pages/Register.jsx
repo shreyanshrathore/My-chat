@@ -1,86 +1,84 @@
 import React, { useState } from 'react'
-import image1 from '../img/addAvatar.png' 
+import image1 from '../img/addAvatar.png'
 import { createUserWithEmailAndPassword, updateProfile } from "@firebase/auth";
-import { auth, storage , db } from "../firebase";
+import { auth, storage, db } from "../firebase";
 import { ref, uploadBytesResumable, getDownloadURL } from "@firebase/storage";
-import { doc, setDoc } from "@firebase/firestore"; 
-import { useNavigate, Link} from "react-router-dom";
+import { doc, setDoc } from "@firebase/firestore";
+import { useNavigate, Link } from "react-router-dom";
 
 
-const Register = () => { 
-  const [err , setErr] = useState(false)
+const Register = () => {
+  const [err, setErr] = useState(false)
   const navigate = useNavigate();
-  const handleSubmit = async (e) =>{
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const Name = e.target[0].value;
+    const displayName = e.target[0].value;
     const email = e.target[1].value;
     const password = e.target[2].value;
     const file = e.target[3].files[0];
 
 
-    try{
+    try {
+      const res = await createUserWithEmailAndPassword(auth, email, password);
+      const storageRef = ref(storage, displayName);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+      uploadTask.on(
+        (error) => {
+          setErr(true)
+        },
+        () => {
 
-      const res = await createUserWithEmailAndPassword(auth, email, password)
+          getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
+
+            await updateProfile(res.user, {
+              displayName,
+              photoURL: downloadURL,
+            });
+            console.log(res.user.displayName);
+            console.log({downloadURL});
+            await setDoc(doc(db, "users", res.user.uid), {
+              uid: res.user.uid,
+              namee:displayName,
+              email,
+              photoURL: downloadURL,
+            });
+            await setDoc(doc(db, "userChats", res.user.uid), {});
+            navigate("/");
+          });
+        }
+      );
 
 
-const storageRef = ref(storage, Name);
 
-const uploadTask = uploadBytesResumable(storageRef, file);
-
-
-uploadTask.on(
-  (error) => {
-    setErr(true)
-  }, 
-  () => {
-
-    getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
-      
-      await updateProfile(res.user,{
-        Name,
-        photoURL:downloadURL,
-      });
-      await setDoc(doc(db, "users", res.user.uid),{
-        uid: res.user.uid,
-        Name,
-        email,
-        photoURL: downloadURL,
-      });
-
-      await setDoc(doc(db, "userChats", res.user.uid), {});
-      navigate("/");
-    });
-  }
-);
     }
 
-    catch(err){
+    catch (err) {
       setErr(true);
     }
 
-    
+
   };
   return (
     <div className='formContainer'>
-        <div className="formWrapper">
+      <div className="formWrapper">
         <span className="logo">Shreyansh Chat</span>
-            <span className="title">Register</span>
+        <span className="title">Register</span>
 
-            <form onSubmit={handleSubmit}>
-                <input type="text" placeholder='Display Name'/>
-                <input type="email" placeholder='Email'/>
-                <input type="password" placeholder='Password'/>
-                <input style={{display:"none"}} type="file" id='file' />
-                <label htmlFor="file">
-                    <img src={image1} alt="" />
-                    <span>Add an Avatar</span>
-                </label>
-                <button>Sign up</button>
-                {err && <span>Something Went wrong</span>}
-            </form>
-            <p>You do have an account? <Link to= "/login">Login</Link></p>
-        </div>
+        <form onSubmit={handleSubmit}>
+          <input type="text" placeholder='Display Name' />
+          <input type="email" placeholder='Email' />
+          <input type="password" placeholder='Password' />
+          <input style={{ display: "none" }} type="file" id='file' />
+          <label htmlFor="file">
+            <img src={image1} alt="" />
+            <span>Add an Avatar</span>
+          </label>
+          <button>Sign up</button>
+          {err && <span>Something Went wrong</span>}
+        </form>
+        <p>You do have an account? <Link to="/login">Login</Link></p>
+      </div>
     </div>
   )
 }
